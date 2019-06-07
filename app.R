@@ -89,7 +89,12 @@ body <- dashboardBody(
                 ),
                 tabBox(
                   width = NULL,
-                  title = "Streamgraph by country ",
+                  title = "By country ",
+                  p(em(icon("info-circle"), HTML("Streamgraph is a variation of stack area chart that
+                                                 has values displaced around a varying central baseline. 
+                                                 The result has organic shapes that somewhat resemble a 
+                                                 river-like stream. <br/>"),
+                       icon("info-circle"), "Hover to see the value along timeline.")),
                   selected = "Incidents",
                   tabPanel("Incidents",
                            streamgraphOutput("streamInc")
@@ -139,6 +144,7 @@ body <- dashboardBody(
                 ),
                 tabBox(
                   width = NULL,
+                  selected = "Stream graph",
                   title = "Target type ",
                   tabPanel("Bar graph",
                            plotlyOutput("barTar")
@@ -153,6 +159,7 @@ body <- dashboardBody(
                 tabBox(
                   width = NULL,
                   title = "Attack type ",
+                  selected = "Stream graph",
                   tabPanel("Bar graph",
                            plotlyOutput("barAtt")
                   ),
@@ -249,7 +256,11 @@ server <- function(input, output){
     filteredData() %>% 
       mutate(country_txt = fct_lump(country_txt, 10)) %>%
       count(country_txt) %>% 
-      plot_ly(y = ~ fct_reorder(country_txt, n), x = ~ n, type = "bar")
+      plot_ly(y = ~ fct_reorder(country_txt, n), x = ~ n, type = "bar") %>% 
+      layout(
+        xaxis = list(title = "Number of Incidents"),
+        yaxis = list(title = "Country")
+      )
     })
   
   output$pieRegion <- renderPlotly({
@@ -263,14 +274,20 @@ server <- function(input, output){
     filteredData() %>% 
       mutate(country_txt = fct_lump(country_txt, 10)) %>% 
       count(country_txt, iyear) %>% 
-      streamgraph(country_txt, n, iyear)
+      streamgraph(country_txt, n, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Country: ")
       
   })
   
   output$lineInc <- renderPlotly({
     filteredData() %>% 
       count(iyear) %>% 
-      plot_ly(x = ~iyear, y = ~n, type = "scatter", mode = "lines")
+      plot_ly(x = ~iyear, y = ~n, type = "scatter", mode = "lines") %>% 
+      layout(
+        xaxis = list(title = "Year"),
+        yaxis = list(title = "Number of Incidents")
+      )
   })
   
   output$barAtt <- renderPlotly({
@@ -279,7 +296,11 @@ server <- function(input, output){
       unlist() %>% 
       tibble(attacktype = .) %>% 
       count(attacktype) %>% 
-      plot_ly(y = ~fct_reorder(attacktype, n), x = ~n, type = "bar") 
+      plot_ly(y = ~fct_reorder(attacktype, n), x = ~n, type = "bar") %>% 
+      layout(
+        xaxis = list(title = "Number of incidents"),
+        yaxis = list(title = "Attack type")
+      ) 
   })
 
   output$barTar <- renderPlotly({
@@ -288,7 +309,11 @@ server <- function(input, output){
       unlist() %>% 
       tibble(targtype = .) %>% 
       count(targtype) %>% 
-      plot_ly(y = ~fct_reorder(targtype, n), x = ~n, type = "bar")
+      plot_ly(y = ~fct_reorder(targtype, n), x = ~n, type = "bar") %>% 
+      layout(
+        xaxis = list(title = "Number of incidents"),
+        yaxis = list(title = "Target type")
+      ) 
   })
   
   output$barGroup <- renderPlotly({
@@ -298,41 +323,61 @@ server <- function(input, output){
       tibble(gname = .) %>% 
       count(gname) %>% 
       top_n(10,n) %>% 
-      plot_ly(y = ~fct_reorder(gname, n), x = ~n, type = "bar")
+      plot_ly(y = ~fct_reorder(gname, n), x = ~n, type = "bar") %>% 
+      layout(
+        xaxis = list(title = "Number of incidents"),
+        yaxis = list(title = "Group responsible")
+      ) 
   })
   
   output$barPro <- renderPlotly({
     filteredData() %>% 
       count(propextent_txt) %>% 
-      plot_ly(y = ~fct_reorder(propextent_txt, n), x = ~n, type = "bar")
+      plot_ly(y = ~fct_reorder(propextent_txt, n), x = ~n, type = "bar") %>% 
+      layout(
+        xaxis = list(title = "Number of incidents"),
+        yaxis = list(title = "Property damage")
+      ) 
   })
   
   output$streamCas <- renderStreamgraph({
     filteredData() %>% 
       group_by(country_txt, iyear) %>% 
       summarise(kill = sum(nkill, na.rm = T)) %>% 
-      streamgraph(country_txt, kill, iyear)
+      streamgraph(country_txt, kill, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Country: ")
   })
   
   output$lineCas <- renderPlotly({
     filteredData() %>% 
       group_by(iyear) %>% 
       summarise(kill = sum(nkill, na.rm = T)) %>% 
-      plot_ly(x = ~iyear, y = ~kill, type = "scatter", mode = "lines")
+      plot_ly(x = ~iyear, y = ~kill, type = "scatter", mode = "lines") %>% 
+      layout(
+        xaxis = list(title = "Year"),
+        yaxis = list(title = "Number of Casualties")
+      )
   })
   
   output$streamInj <- renderStreamgraph({
     filteredData() %>% 
       group_by(country_txt, iyear) %>% 
       summarise(wound = sum(nwound, na.rm = T)) %>% 
-      streamgraph(country_txt, wound, iyear)
+      streamgraph(country_txt, wound, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Country: ") 
+      
   })
   
   output$lineInj <- renderPlotly({
     filteredData() %>%
       group_by(iyear) %>% 
       summarise(wound = sum(nwound, na.rm = T)) %>% 
-      plot_ly(x = ~iyear, y = ~wound, type = "scatter", mode = "lines")
+      plot_ly(x = ~iyear, y = ~wound, type = "scatter", mode = "lines") %>% 
+      layout(
+        xaxis = list(title = "Year"),
+        yaxis = list(title = "Number of Injuries"))
   })
   
   output$nInc <- renderValueBox({
@@ -372,7 +417,9 @@ server <- function(input, output){
           count(iyear, targtype3_txt), by = c("iyear", "targtype1_txt" = "targtype3_txt")) %>% 
       group_by(iyear, targtype1_txt) %>% 
       mutate(total = sum(n.x, n.y, n, na.rm = T)) %>% 
-      streamgraph(targtype1_txt, total, iyear)
+      streamgraph(targtype1_txt, total, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Target type: ")
     
   })
   
@@ -387,7 +434,9 @@ server <- function(input, output){
           count(iyear, attacktype3_txt), by = c("iyear", "attacktype1_txt" = "attacktype3_txt")) %>% 
       group_by(iyear, attacktype1_txt) %>% 
       mutate(total = sum(n.x, n.y, n, na.rm = T)) %>% 
-      streamgraph(attacktype1_txt, total, iyear)
+      streamgraph(attacktype1_txt, total, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Attack type: ")
     
   })
   
@@ -403,7 +452,9 @@ server <- function(input, output){
       group_by(iyear, gname) %>% 
       mutate(total = sum(n.x, n.y, n, na.rm = T)) %>% 
       filter(gname != "Unknown") %>% 
-      streamgraph(gname, total, iyear)
+      streamgraph(gname, total, iyear) %>% 
+      sg_axis_x(5,"year") %>% 
+      sg_legend(show = T, label = "Responsible group: ")
     
   })
   }
