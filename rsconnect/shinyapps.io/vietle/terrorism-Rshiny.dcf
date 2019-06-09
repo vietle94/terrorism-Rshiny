@@ -1,0 +1,13 @@
+name: terrorism-Rshiny
+title: terrorism-Rshiny
+username:
+account: vietle
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 970353
+bundleId: 2139864
+url: https://vietle.shinyapps.io/terrorism-Rshiny/
+when: 1560019999.54012
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: README.md|data/data.csv|data/globalterrorismdb_0718dist.csv

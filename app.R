@@ -3,71 +3,31 @@ library(leaflet)
 library(plotly)
 library(streamgraph)
 library(shinydashboard)
-library(DT)
 
-data <- read_csv("data/data.csv", col_types = cols(
-  ransomamtus = col_number(),
-  ransomnote = col_character(),
-  attacktype3 = col_integer(),
+data <- read_csv("data/newdat.csv", col_types = cols(
+  iyear = col_integer(),
+  latitude = col_double(),
+  longitude = col_double(),
   attacktype3_txt = col_character(),
-  claimmode2 = col_integer(),
-  claimmode2_txt = col_character(),
-  claimmode3 = col_integer(),
-  claimmode3_txt = col_character(),
-  weaptype4 = col_integer(),
-  weaptype4_txt = col_character(),
-  weapsubtype4 = col_integer(),
-  weapsubtype4_txt = col_character(),
   gname3 = col_character(),
-  gsubname3 = col_character(),
-  gsubname2 = col_character(),
-  ransompaidus = col_number(),
-  compclaim = col_integer()
+  nkill = col_integer(),
+  nwound = col_integer()
 ))
-
-data$iday[data$iday == 0] <- 1
-data$imonth[data$imonth == 0] <- 1
-
-data$idate <- data %>% unite(date, iyear, imonth, iday, sep = "-") %>% 
-  mutate(date = lubridate::ymd(date)) %>% 
-  pull(date)
-
-data <- data %>% 
-  mutate_at(vars(gname, gname2, gname3), function(x){gsub('[^ -~]', '', x)}) 
-
-data$popmap <- data %>% 
-  mutate(attacktype2_txt = ifelse(is.na(attacktype2_txt)," ", str_c(", ", attacktype2_txt)),
-         attacktype3_txt = ifelse(is.na(attacktype3_txt)," ", str_c(", ", attacktype3_txt)),
-         weaptype2_txt = ifelse(is.na(weaptype2_txt)," ", str_c(", ", weaptype2_txt)),
-         weaptype3_txt = ifelse(is.na(weaptype3_txt)," ", str_c(", ", weaptype3_txt)),
-         targtype2_txt = ifelse(is.na(targtype2_txt)," ", str_c(", ", targtype2_txt)),
-         targtype3_txt = ifelse(is.na(targtype3_txt)," ", str_c(", ", targtype3_txt)),
-         gname2 = ifelse(is.na(gname2)," ", str_c(", ", gname2)),
-         gname3 = ifelse(is.na(gname3)," ", str_c(", ", gname3))) %>% 
-  mutate(popmap = str_c("Country: ", country_txt, " <br/> ", 
-                        "Date: ", idate, " <br/> ",
-                        "Attack type: ", attacktype1_txt, attacktype2_txt, attacktype3_txt, " <br/> ",
-                     "Weapon: ", weaptype1_txt, weaptype2_txt, weaptype3_txt, " <br/> ",
-                     "Target: ", targtype1_txt, targtype2_txt, targtype3_txt, " <br/> ",
-                     "Group responsible: ", gname, gname2, gname3, " <br/> ",
-                     "Casualty: ", str_replace_na(nkill), " <br/> ",
-                     "Injured: ", str_replace_na(nwound), " <br/> ",
-                     "Property damage: ", str_replace_na(propextent_txt))) %>% pull(popmap)
-
-
 sidebar <- dashboardSidebar(
   sidebarMenu(
     dateRangeInput("dateRange",
-                   label = "Choose date range",
+                   label = h4("Choose period for data"),
                    start = "2000-01-01", end = "2017-12-31",
                    min = "1970-01-01", max = "2017-12-31",
                    separator = " - ", format = "yyyy/mm/dd",
                    startview = 'year'
     ),
+    
     menuItem("Map", tabName = "map", icon = icon("dashboard")),
     menuItem("More analysis", icon = icon("th"), tabName = "df",
              badgeLabel = "new", badgeColor = "green"),
     menuItem("About", tabName = "about", icon = icon("address-book"))
+    
   )
 )
 
@@ -84,7 +44,20 @@ body <- dashboardBody(
                 width = 8,
                 box(
                   width = NULL,
+                  tags$style(
+                    ".irs-bar {",
+                    "  border-color: transparent;",
+                    "  background-color: transparent;",
+                    "}",
+                    ".irs-bar-edge {",
+                    "  border-color: transparent;",
+                    "  background-color: transparent;",
+                    "}"
+                  ),
                   leafletOutput("map", height = 600),
+                  sliderInput("Slider", label = NA, min = 1970, 
+                              max = 2017, value = 2000, sep = ""),
+                  title =  "Terrorist attack location by year", solidHeader = T,
                   status = "info"
                 ),
                 tabBox(
@@ -225,7 +198,17 @@ body <- dashboardBody(
 
 # Put them together into a dashboardPage
 ui <- dashboardPage(
-  dashboardHeader(title = "Global terrorism"),
+  dashboardHeader(title = "Global terrorism", 
+                  tags$li(class="dropdown",
+                          tags$a(href="http://vietle.info", 
+                                  "Home", target="_blank")),
+                  tags$li(class="dropdown",
+                          tags$a(href="https://github.com/vietle94", 
+                                 icon("github"), "", target="_blank")),
+                  tags$li(class="dropdown",
+                          tags$a(href="https://www.linkedin.com/in/vietle94/", 
+                                 icon("linkedin-in"), "", target="_blank"))
+                  ),
   sidebar,
   body
 )
@@ -235,22 +218,28 @@ server <- function(input, output){
   filteredData <- reactive({
     data[data$idate >= input$dateRange[1] & data$idate <= input$dateRange[2],]
   })
+  
+  yearData <- reactive({
+    data %>% filter(iyear == input$Slider)
+  })
 
   output$map <- renderLeaflet(
     data %>% 
-    leaflet() %>% 
-      addTiles() %>%
-      setMaxBounds(~min(data$longitude), ~min(data$latitude), ~max(data$longitude), ~max(data$latitude)) %>% 
-      setView(0,0, 2))
-  
-  observe({
-    leafletProxy("map", data = filteredData()) %>% 
-      clearMarkers() %>%
-      clearMarkerClusters() %>% 
-      addMarkers(~longitude, ~latitude, label = ~filteredData()$popmap %>% map(htmltools::HTML),
-                 clusterOptions = markerClusterOptions(disableClusteringAtZoom = 12))
+      filter(iyear == 2000) %>% 
+      leaflet() %>% 
+      addTiles())
       
-  })
+  
+  observe(
+    leafletProxy("map", data = yearData()) %>% 
+      clearMarkers() %>% 
+      clearMarkerClusters() %>% 
+      addMarkers(~longitude, ~latitude, label = ~popmap %>% map(htmltools::HTML),
+                 clusterOptions = markerClusterOptions(disableClusteringAtZoom = 12)) %>% 
+      setMaxBounds(~longitude %>% min(), ~latitude %>% min(), ~longitude %>% max(), ~latitude %>% max()) %>% 
+      setView(0,0, 2)
+  )
+    
   
   output$barCountry <- renderPlotly({
     filteredData() %>% 
